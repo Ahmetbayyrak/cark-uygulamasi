@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Karar Çarkı</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Outfit',system-ui,sans-serif;background:#07070f;color:#eef;min-height:100vh;overflow-x:hidden}
+  .bg::before,.bg::after{content:"";position:fixed;width:60vmax;height:60vmax;border-radius:50%;filter:blur(110px);opacity:.35;z-index:-1;animation:float 14s ease-in-out infinite alternate}
+  .bg::before{background:#7c3aed;top:-20vmax;left:-15vmax}
+  .bg::after{background:#06b6d4;bottom:-25vmax;right:-15vmax;animation-delay:-7s}
+  @keyframes float{to{transform:translate(8vmax,6vmax) scale(1.15)}}
+  .glass{background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 40px rgba(0,0,0,.45);border-radius:24px}
+  .chip{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:999px;padding:.4rem .9rem;font-size:.85rem;transition:.2s;cursor:pointer}
+  .chip:hover,.chip.on{background:linear-gradient(135deg,#8b5cf6,#06b6d4);border-color:transparent;transform:translateY(-2px)}
+  .btn{background:linear-gradient(135deg,#8b5cf6,#ec4899);border-radius:14px;padding:.7rem 1.2rem;font-weight:600;transition:.2s;box-shadow:0 0 24px rgba(139,92,246,.5)}
+  .btn:hover{transform:scale(1.04)}
+  .btn:disabled{opacity:.5;cursor:not-allowed;transform:none}
+  input[type=text]{background:rgba(0,0,0,.35);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:.7rem 1rem;outline:none;width:100%;color:#fff}
+  input[type=text]:focus{border-color:#8b5cf6;box-shadow:0 0 0 3px rgba(139,92,246,.3)}
+  .item{display:flex;justify-content:space-between;align-items:center;padding:.45rem .8rem;border-radius:12px;background:rgba(255,255,255,.05);margin-bottom:.4rem;animation:pop .25s}
+  @keyframes pop{from{transform:scale(.9);opacity:0}}
+  .x{color:#f87171;font-weight:800;padding:0 .4rem;cursor:pointer}
+  #list{max-height:260px;overflow:auto}
+  #list::-webkit-scrollbar{width:6px}#list::-webkit-scrollbar-thumb{background:#555;border-radius:9px}
+  #modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.65);backdrop-filter:blur(6px);z-index:50;padding:1rem}
+  #modal.show{display:flex}
+  #modal .box{animation:zoom .5s cubic-bezier(.2,1.4,.4,1);max-width:440px;width:100%;text-align:center;padding:2rem}
+  @keyframes zoom{from{transform:scale(.3) rotate(-8deg);opacity:0}}
+  .grad{background:linear-gradient(90deg,#a78bfa,#22d3ee,#f472b6);-webkit-background-clip:text;background-clip:text;color:transparent}
+  #fx{position:fixed;inset:0;pointer-events:none;z-index:60}
+  #no{transition:transform .15s}
+</style>
+</head>
+<body class="bg">
+<canvas id="fx"></canvas>
+<main class="max-w-6xl mx-auto p-4 md:p-8">
+  <header class="text-center mb-6">
+    <h1 class="text-4xl md:text-6xl font-extrabold grad">KARAR ÇARKI</h1>
+    <p class="text-white/60 mt-2">Kararsızlığa son. Çark konuşur, sen uyarsın.</p>
+  </header>
+
+  <div class="grid lg:grid-cols-[1.2fr_1fr] gap-6 items-start">
+    <section class="glass p-4 md:p-6 flex flex-col items-center">
+      <div class="relative w-full max-w-[520px] aspect-square">
+        <div class="absolute left-1/2 -top-1 -translate-x-1/2 z-10 drop-shadow-[0_0_10px_#f472b6]" style="width:0;height:0;border-left:16px solid transparent;border-right:16px solid transparent;border-top:36px solid #fff"></div>
+        <canvas id="wheel" class="w-full h-full rounded-full" style="box-shadow:0 0 60px rgba(139,92,246,.5),0 0 0 8px rgba(255,255,255,.08)"></canvas>
+      </div>
+      <button id="spin" class="btn mt-6 text-lg px-10 py-3">🎡 ÇEVİR</button>
+    </section>
+
+    <section class="glass p-5 md:p-6 space-y-5">
+      <div>
+        <h2 class="font-semibold mb-2 text-white/80">Hazır Kategoriler</h2>
+        <div id="cats" class="flex flex-wrap gap-2"></div>
+      </div>
+      <div>
+        <h2 class="font-semibold mb-2 text-white/80">Kendi Seçeneklerin</h2>
+        <div class="flex gap-2">
+          <input id="inp" type="text" placeholder="Seçenek yaz, Enter'a bas" maxlength="30">
+          <button id="add" class="btn">Ekle</button>
+        </div>
+      </div>
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-sm text-white/60"><b id="cnt">0</b> seçenek</span>
+          <div class="flex gap-3 text-sm">
+            <span id="shuf" class="chip">🔀 Karıştır</span>
+            <span id="clr" class="chip">🗑 Temizle</span>
+          </div>
+        </div>
+        <div id="list"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<div id="modal">
+  <div class="glass box">
+    <div class="text-white/60 text-sm tracking-widest">KADERİN BELLİ OLDU</div>
+    <div id="win" class="text-4xl md:text-5xl font-extrabold grad my-4 break-words"></div>
+    <div class="rounded-2xl p-4 mb-5 text-sm" style="background:rgba(244,63,94,.12);border:1px solid rgba(244,63,94,.4)">
+      ⚖️ <b>İTİRAZ YOK KURALI</b><br>
+      <span id="rule" class="text-white/80"></span>
+    </div>
+    <div class="flex gap-3 justify-center">
+      <button id="ok" class="btn">Kaderime Razıyım 🙏</button>
+      <button id="no" class="chip">İtiraz Ediyorum</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const CATS={
+ '🍕 Ne Yiyeceğiz?':['Pizza','Burger','Kebap','Sushi','Makarna','Döner','Lahmacun','Tavuk Wrap'],
+ '🎬 Ne İzleyeceğiz?':['Komedi','Aksiyon','Korku','Bilim Kurgu','Dizi Maratonu','Belgesel','Animasyon','Romantik'],
+ '🎯 Bugün Ne Yapalım?':['Sinema','Yürüyüş','Bowling','Oyun Gecesi','Piknik','Müze','Karaoke','Evde Dinlen'],
+ '☕ Kahve/Mola':['Filtre Kahve','Latte','Türk Kahvesi','Espresso','Çay','Mocha','Cold Brew','Limonata']
+};
+const COLORS=['#8b5cf6','#06b6d4','#ec4899','#f59e0b','#10b981','#3b82f6','#f43f5e','#a3e635','#d946ef','#14b8a6'];
+const RULES=['Çarkın kararı kesindir. Temyiz mahkemesi evrenin ta kendisidir.','Burada itiraz kabul edilmez. Yıldızlar böyle yazdı.','Çark konuştu, sen sustun. Bu antlaşma geri alınamaz.','İtiraz dilekçeleri anında kara deliğe gönderilir.','Kader mührünü bastı. Şikayet hattı kapalıdır.'];
+const $=id=>document.getElementById(id);
+let items=[],rot=0,spinning=false,lastIdx=-1;
+try{items=JSON.parse(localStorage.getItem('wheelItems'))||[]}catch(e){}
+if(!items.length)items=[...CATS['🍕 Ne Yiyeceğiz?']];
+const save=()=>{try{localStorage.setItem('wheelItems',JSON.stringify(items))}catch(e){}};
+
+// ---------- Audio ----------
+let ac;
+const A=()=>ac||(ac=new (window.AudioContext||window.webkitAudioContext)());
+function tone(f,t0,d,type='sine',v=.15){
+  const c=A(),o=c.createOscillator(),g=c.createGain();
+  o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(v,c.currentTime+t0);
+  g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+t0+d);
+  o.connect(g).connect(c.destination);o.start(c.currentTime+t0);o.stop(c.currentTime+t0+d+.02);
+}
+const tick=()=>tone(700+Math.random()*120,0,.04,'square',.08);
+function fanfare(){[523,659,784,1047,1319].forEach((f,i)=>tone(f,i*.11,.35,'triangle',.18));tone(1568,.6,.8,'sine',.15)}
+
+// ---------- Wheel ----------
+const cv=$('wheel'),ctx=cv.getContext('2d');
+function size(){const d=devicePixelRatio||1,s=cv.clientWidth;cv.width=cv.height=s*d;ctx.setTransform(d,0,0,d,0,0);draw()}
+function draw(){
+  const s=cv.clientWidth,r=s/2,n=items.length,a=2*Math.PI/n;
+  ctx.clearRect(0,0,s,s);
+  ctx.save();ctx.translate(r,r);ctx.rotate(rot);
+  items.forEach((t,i)=>{
+    const c=COLORS[i%COLORS.length],g=ctx.createRadialGradient(0,0,r*.1,0,0,r);
+    g.addColorStop(0,c+'cc');g.addColorStop(1,c);
+    ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,r-6,i*a,(i+1)*a);ctx.closePath();
+    ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(255,255,255,.35)';ctx.lineWidth=2;ctx.stroke();
+    ctx.save();ctx.rotate(i*a+a/2);ctx.textAlign='right';ctx.fillStyle='#fff';
+    ctx.font=`700 ${Math.max(11,Math.min(22,s/(n>12?30:20)))}px Outfit`;
+    ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=4;
+    let txt=t.length>16?t.slice(0,15)+'…':t;
+    ctx.fillText(txt,r-24,6);ctx.restore();
+  });
+  ctx.restore();
+  // hub
+  ctx.beginPath();ctx.arc(r,r,s*.07,0,7);
+  const h=ctx.createRadialGradient(r,r,2,r,r,s*.07);h.addColorStop(0,'#fff');h.addColorStop(1,'#a78bfa');
+  ctx.fillStyle=h;ctx.shadowColor='#8b5cf6';ctx.shadowBlur=20;ctx.fill();
+}
+const idxAt=()=>{const a=2*Math.PI/items.length;let x=(-Math.PI/2-rot)%(2*Math.PI);if(x<0)x+=2*Math.PI;return Math.floor(x/a)%items.length};
+
+function spin(){
+  if(spinning||items.length<2)return;
+  A().resume();spinning=true;$('spin').disabled=true;
+  const start=rot,total=Math.PI*2*(6+Math.random()*4)+Math.random()*Math.PI*2,dur=5500+Math.random()*1500,t0=performance.now();
+  lastIdx=idxAt();
+  const ease=p=>p<.08?(p/.08)*(p/.08)*.02*0+ (p/.08)*(p/.08)*.08:.08+.92*(1-Math.pow(1-(p-.08)/.92,4));
+  (function f(now){
+    const p=Math.min(1,(now-t0)/dur);
+    rot=start+total*ease(p);
+    const i=idxAt();if(i!==lastIdx){lastIdx=i;tick()}
+    draw();
+    if(p<1)requestAnimationFrame(f);else end();
+  })(t0);
+}
+function end(){
+  spinning=false;$('spin').disabled=false;
+  $('win').textContent=items[idxAt()];
+  $('rule').textContent=RULES[Math.floor(Math.random()*RULES.length)];
+  $('modal').classList.add('show');
+  fanfare();burst();
+}
+
+// ---------- Confetti ----------
+const fx=$('fx'),fc=fx.getContext('2d');let parts=[],anim=false;
+function fsize(){fx.width=innerWidth;fx.height=innerHeight}
+function burst(){
+  for(let k=0;k<2;k++)for(let i=0;i<120;i++){
+    const ang=Math.random()*Math.PI*2,sp=6+Math.random()*12;
+    parts.push({x:innerWidth/2,y:innerHeight/2.4,vx:Math.cos(ang)*sp,vy:Math.sin(ang)*sp-6,w:6+Math.random()*8,h:4+Math.random()*6,
+      c:COLORS[Math.floor(Math.random()*COLORS.length)],r:Math.random()*6,vr:(Math.random()-.5)*.4,life:140+Math.random()*80});
+  }
+  if(!anim){anim=true;loop()}
+}
+function loop(){
+  fc.clearRect(0,0,fx.width,fx.height);
+  parts=parts.filter(p=>p.life>0&&p.y<fx.height+30);
+  parts.forEach(p=>{p.vy+=.25;p.vx*=.99;p.x+=p.vx;p.y+=p.vy;p.r+=p.vr;p.life--;
+    fc.save();fc.translate(p.x,p.y);fc.rotate(p.r);fc.fillStyle=p.c;fc.globalAlpha=Math.min(1,p.life/40);fc.fillRect(-p.w/2,-p.h/2,p.w,p.h);fc.restore()});
+  if(parts.length)requestAnimationFrame(loop);else{anim=false;fc.clearRect(0,0,fx.width,fx.height)}
+}
+
+// ---------- UI ----------
+function render(){
+  $('cnt').textContent=items.length;
+  $('list').innerHTML='';
+  items.forEach((t,i)=>{
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<span><i style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${COLORS[i%COLORS.length]};margin-right:8px"></i></span>`;
+    d.querySelector('span').append(document.createTextNode(t));
+    const x=document.createElement('span');x.className='x';x.textContent='✕';
+    x.onclick=()=>{if(spinning)return;items.splice(i,1);update()};
+    d.append(x);$('list').append(d);
+  });
+  $('spin').disabled=spinning||items.length<2;
+  draw();
+}
+function update(){save();render()}
+function addItem(){
+  const v=$('inp').value.trim();if(!v||spinning)return;
+  items.push(v);$('inp').value='';update();$('inp').focus();
+}
+Object.keys(CATS).forEach(k=>{
+  const b=document.createElement('span');b.className='chip';b.textContent=k;
+  b.onclick=()=>{if(spinning)return;items=[...CATS[k]];document.querySelectorAll('#cats .chip').forEach(c=>c.classList.remove('on'));b.classList.add('on');update()};
+  $('cats').append(b);
+});
+$('add').onclick=addItem;
+$('inp').onkeydown=e=>{if(e.key==='Enter')addItem()};
+$('shuf').onclick=()=>{if(spinning)return;items.sort(()=>Math.random()-.5);update()};
+$('clr').onclick=()=>{if(spinning)return;items=[];update()};
+$('spin').onclick=spin;
+$('ok').onclick=()=>$('modal').classList.remove('show');
+// İtiraz butonu: tıklanamaz, kaçar
+const no=$('no');
+function dodge(){
+  const x=(Math.random()-.5)*260,y=(Math.random()-.5)*160;
+  no.style.transform=`translate(${x}px,${y}px) rotate(${(Math.random()-.5)*30}deg)`;
+  $('rule').textContent='İtiraz butonu bile kaçıyor. Direnmek anlamsız. 😎';
+}
+no.onmouseenter=dodge;
+no.onclick=e=>{e.preventDefault();dodge()};
+no.ontouchstart=e=>{e.preventDefault();dodge()};
+$('modal').addEventListener('click',e=>{if(e.target.id==='modal'){$('rule').textContent='Dışarı tıklayarak da kaçamazsın. "Kaderime Razıyım" de. 🔒'}});
+
+addEventListener('resize',()=>{size();fsize()});
+fsize();size();render();
+</script>
+</body>
+</html>
